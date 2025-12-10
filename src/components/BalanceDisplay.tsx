@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserProvider, Contract, formatUnits, getAddress } from 'ethers'
 
 import type { BalanceType } from '../types/global'
+import { useAuth } from './DAPPLayout'
 
 const ERC20_ABI = [
   'function balanceOf(address account) view returns (uint256)',
@@ -27,13 +28,7 @@ const NATIVE_TOKEN_SYMBOLS: Record<number, string> = {
   560048: 'ETH'
 }
 
-type WalletStatus =
-  | 'idle'
-  | 'loading'
-  | 'ready'
-  | 'disconnected'
-  | 'no-wallet'
-  | 'error'
+type WalletStatus = 'idle' | 'loading' | 'ready' | 'provider-missing' | 'error'
 
 type BalanceDisplayProps = {
   customTokenAddress?: string
@@ -54,29 +49,18 @@ const formatBalanceValue = (value: bigint, decimals: number) => {
 }
 
 const truncateAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`
-const AUTO_CONNECT_STORAGE_KEY = 'balance-display:auto-connect'
-
-const readAutoConnectPreference = () => {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return true
-  }
-
-  return window.localStorage.getItem(AUTO_CONNECT_STORAGE_KEY) !== '0'
-}
-
 export const BalanceDisplay = ({
   customTokenAddress,
   heading = 'Wallet balances'
 }: BalanceDisplayProps) => {
   const [status, setStatus] = useState<WalletStatus>('idle')
-  const [account, setAccount] = useState<string | null>(null)
   const [chainId, setChainId] = useState<number | null>(null)
   const [nativeBalance, setNativeBalance] = useState<BalanceType | null>(null)
   const [tokenBalance, setTokenBalance] = useState<BalanceType | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [shouldAutoConnect, setShouldAutoConnect] = useState<boolean>(() => readAutoConnectPreference())
   const providerRef = useRef<BrowserProvider | null>(null)
+  const { walletAddress } = useAuth()
+  const resolvedWalletAddress = typeof walletAddress === 'string' ? walletAddress : null
 
   const { normalizedTokenAddress, tokenAddressError } = useMemo(() => {
     if (!customTokenAddress) {
@@ -102,10 +86,10 @@ export const BalanceDisplay = ({
     return providerRef.current
   }, [])
 
-  const resetBalances = useCallback((nextStatus: WalletStatus) => {
+  const resetBalances = useCallback(() => {
     setNativeBalance(null)
     setTokenBalance(null)
-    setStatus(nextStatus)
+    setChainId(null)
   }, [])
 
   const fetchBalances = useCallback(
@@ -113,8 +97,8 @@ export const BalanceDisplay = ({
       const provider = getProvider()
 
       if (!provider) {
-        setError('Browser wallet was not detected.')
-        setStatus('no-wallet')
+        setError('Web3 провайдер не знайдено.')
+        setStatus('provider-missing')
         return
       }
 
@@ -165,165 +149,44 @@ export const BalanceDisplay = ({
     [getProvider, normalizedTokenAddress]
   )
 
-  const persistAutoConnectPreference = useCallback((value: boolean) => {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(AUTO_CONNECT_STORAGE_KEY, value ? '1' : '0')
-    }
-
-    setShouldAutoConnect(value)
-  }, [])
-
-  const initializeConnection = useCallback(async () => {
-    if (!shouldAutoConnect) {
+  useEffect(() => {
+    if (!resolvedWalletAddress) {
+      setStatus('idle')
+      resetBalances()
       return
     }
 
-    const provider = getProvider()
-
-    if (!provider) {
-      setStatus('no-wallet')
-      setError('Browser wallet was not detected.')
-      return
-    }
-
-    try {
-      const accounts = await provider.send('eth_accounts', [])
-
-      if (!accounts || accounts.length === 0) {
-        setAccount(null)
-        resetBalances('disconnected')
-        return
-      }
-
-      const walletAddress = accounts[0]
-      setAccount(walletAddress)
-      await fetchBalances(walletAddress)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unable to read wallet accounts.'
-      setError(message)
-      setStatus('error')
-    }
-  }, [fetchBalances, getProvider, resetBalances, shouldAutoConnect])
-
-  const handleConnect = useCallback(async () => {
-    const provider = getProvider()
-
-    if (!provider) {
-      setStatus('no-wallet')
-      setError('Browser wallet was not detected.')
-      return
-    }
-
-    setIsConnecting(true)
-
-    try {
-      try {
-        await provider.send('wallet_requestPermissions', [{ eth_accounts: {} }])
-      } catch (permissionError) {
-        // wallet_requestPermissions is optional; ignore method errors and only stop on rejections
-        const err = permissionError as { code?: number }
-        const isUserRejected = err?.code === 4001
-        const isMethodMissing = err?.code === -32601
-
-        if (!isUserRejected && !isMethodMissing) {
-          console.warn('wallet_requestPermissions failed, falling back to eth_requestAccounts', permissionError)
-        }
-
-        if (isUserRejected) {
-          throw permissionError
-        }
-      }
-
-      const accounts = await provider.send('eth_requestAccounts', [])
-
-      if (!accounts || accounts.length === 0) {
-        throw new Error('No wallet account was returned.')
-      }
-
-      const walletAddress = accounts[0]
-      setAccount(walletAddress)
-      await fetchBalances(walletAddress)
-      persistAutoConnectPreference(true)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to connect wallet.'
-      setError(message)
-    } finally {
-      setIsConnecting(false)
-    }
-  }, [fetchBalances, getProvider, persistAutoConnectPreference])
-
-  const handleManualDisconnect = useCallback(() => {
-    providerRef.current = null
-    setAccount(null)
-    setChainId(null)
-    resetBalances('disconnected')
-    persistAutoConnectPreference(false)
-  }, [persistAutoConnectPreference, resetBalances])
+    void fetchBalances(resolvedWalletAddress)
+  }, [fetchBalances, resetBalances, resolvedWalletAddress])
 
   useEffect(() => {
-    if (!shouldAutoConnect) {
-      setAccount(null)
-      resetBalances('disconnected')
+    if (typeof window === 'undefined' || !window.ethereum) {
       return
-    }
-
-    initializeConnection()
-  }, [initializeConnection, resetBalances, shouldAutoConnect])
-
-  useEffect(() => {
-    const ethereum = window.ethereum
-
-    if (!ethereum) {
-      return
-    }
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (!accounts || accounts.length === 0) {
-        setAccount(null)
-        persistAutoConnectPreference(false)
-        resetBalances('disconnected')
-        return
-      }
-
-      const walletAddress = accounts[0]
-      setAccount(walletAddress)
-      fetchBalances(walletAddress)
     }
 
     const handleChainChanged = () => {
       providerRef.current = null
-      initializeConnection()
+      if (resolvedWalletAddress) {
+        void fetchBalances(resolvedWalletAddress)
+      }
     }
 
     const handleDisconnect = () => {
-      handleManualDisconnect()
+      providerRef.current = null
+      setStatus('idle')
+      resetBalances()
     }
 
-    ethereum.on?.('accountsChanged', handleAccountsChanged)
-    ethereum.on?.('chainChanged', handleChainChanged)
-    ethereum.on?.('disconnect', handleDisconnect)
+    window.ethereum.on?.('chainChanged', handleChainChanged)
+    window.ethereum.on?.('disconnect', handleDisconnect)
 
     return () => {
-      ethereum.removeListener?.('accountsChanged', handleAccountsChanged)
-      ethereum.removeListener?.('chainChanged', handleChainChanged)
-      ethereum.removeListener?.('disconnect', handleDisconnect)
+      window.ethereum?.removeListener?.('chainChanged', handleChainChanged)
+      window.ethereum?.removeListener?.('disconnect', handleDisconnect)
     }
-  }, [
-    fetchBalances,
-    handleManualDisconnect,
-    initializeConnection,
-    persistAutoConnectPreference,
-    resetBalances
-  ])
+  }, [fetchBalances, resetBalances, resolvedWalletAddress])
 
-  useEffect(() => {
-    if (account) {
-      fetchBalances(account)
-    }
-  }, [account, fetchBalances])
-
-  const shouldShowBalances = status === 'ready' && !!account
-  const isWalletDetected = typeof window !== 'undefined' && !!window.ethereum
+  const shouldShowBalances = status === 'ready' && !!resolvedWalletAddress
 
   return (
     <section className="balance-display">
@@ -332,33 +195,19 @@ export const BalanceDisplay = ({
         {chainId && shouldShowBalances ? <span className="chain-pill">Chain ID: {chainId}</span> : null}
       </div>
 
-      {status === 'loading' && <p className="muted">Fetching balances...</p>}
-      {status === 'no-wallet' && <p className="balance-error">Please install a Web3 wallet (e.g. MetaMask).</p>}
-      {status === 'disconnected' && <p className="muted">Connect your wallet to see balances.</p>}
+      {status === 'idle' && !resolvedWalletAddress ? (
+        <p className="muted">Очікуємо на адресу гаманця...</p>
+      ) : null}
+      {status === 'loading' && <p className="muted">Отримуємо баланси...</p>}
+      {status === 'provider-missing' && (
+        <p className="balance-error">Будь ласка, встановіть Web3 гаманець (MetaMask тощо).</p>
+      )}
       {tokenAddressError && <p className="balance-error">{tokenAddressError}</p>}
       {status === 'error' && error ? <p className="balance-error">{error}</p> : null}
 
-      {isWalletDetected ? (
-        <div className="balance-actions">
-          {!account ? (
-            <button
-              className="connect-button"
-              onClick={handleConnect}
-              disabled={isConnecting || status === 'loading'}
-            >
-              {isConnecting ? 'Connecting…' : 'Connect Wallet'}
-            </button>
-          ) : (
-            <button className="disconnect-button" onClick={handleManualDisconnect}>
-              Disconnect
-            </button>
-          )}
-        </div>
-      ) : null}
-
       {shouldShowBalances ? (
         <div className="balance-card">
-          <p className="muted">Account: {truncateAddress(account)}</p>
+          <p className="muted">Account: {truncateAddress(resolvedWalletAddress)}</p>
 
           {nativeBalance ? (
             <div className="balance-row">

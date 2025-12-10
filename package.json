@@ -13,6 +13,7 @@
     "@reown/appkit": "1.7.17",
     "@reown/appkit-adapter-wagmi": "1.7.17",
     "@tanstack/react-query": "^5.56.2",
+    "axios": "^1.13.2",
     "ethers": "^6.15.0",
     "jwt-decode": "^4.0.0",
     "node": "^20.19.6",
