@@ -173,3 +173,136 @@ textarea:focus {
   outline: none;
   box-shadow: 0 0 0 2px #e0e0e0;
 }
+
+/* Wallet Connect Styles */
+.app-header {
+  padding: 40px 20px;
+  text-align: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px;
+  margin: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.app-header h1 {
+  margin: 0 0 10px 0;
+  font-size: 2.5rem;
+}
+
+.app-header p {
+  margin: 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.app-main {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.wallet-connect-container {
+  width: 100%;
+  max-width: 600px;
+  padding: 30px;
+  background: white;
+  border: 2px solid #000;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.wallet-info {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.wallet-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 20px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.wallet-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.wallet-address,
+.wallet-balance,
+.wallet-chain,
+.wallet-network {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.wallet-address strong,
+.wallet-balance strong,
+.wallet-chain strong,
+.wallet-network strong {
+  display: inline-block;
+  min-width: 100px;
+}
+
+.connect-button,
+.disconnect-button,
+.switch-button {
+  width: 100%;
+  padding: 14px 20px;
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+.connect-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+}
+
+.connect-button:hover {
+  background: linear-gradient(135deg, #5568d3 0%, #65428b 100%);
+}
+
+.disconnect-button {
+  background-color: #ff4444;
+  color: white;
+  border: 2px solid #ff4444;
+}
+
+.disconnect-button:hover {
+  background-color: #cc0000;
+  border-color: #cc0000;
+}
+
+.wrong-network {
+  padding: 20px;
+  background-color: #fff3cd;
+  border: 2px solid #ffcc00;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.error-message {
+  color: #856404;
+  font-weight: bold;
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.network-instruction {
+  color: #856404;
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.6;
+}
