@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BrowserProvider, Contract } from 'ethers'
-import { DAO_ABI, DAO_CONTRACT_ADDRESS, type Proposal } from '../contracts/dao'
+import { DAO_ABI, DAO_CONTRACT_ADDRESS, type Proposal, type ProposalExecutedEvent } from '../contracts/dao'
+import { useDAOEvents } from '../hooks/useDAOEvents'
 
 type ExecuteStatus = 'idle' | 'pending' | 'success' | 'error'
 
@@ -95,15 +96,21 @@ export const ProposalList = () => {
       const tx = await contract.executeProposal(proposalId)
       await tx.wait()
 
-      // Update proposal status to success and mark as executed
-      setProposals((prev) =>
-        prev.map((p) => (p.id === proposalId ? { ...p, executeStatus: 'success', executed: true } : p))
-      )
+      const updatedProposal = await contract.getProposal(proposalId)
 
-      // Refresh proposals to get updated data
-      if (account) {
-        await fetchProposals(account)
-      }
+      setProposals((prev) =>
+        prev.map((p) =>
+          p.id === proposalId
+            ? {
+                ...p,
+                description: updatedProposal.description,
+                executed: updatedProposal.executed,
+                executeStatus: 'success',
+                executeError: null
+              }
+            : p
+        )
+      )
     } catch (err) {
       let message = 'Не вдалося виконати пропозицію'
 
@@ -175,6 +182,16 @@ export const ProposalList = () => {
     }
   }, [fetchProposals])
 
+  useDAOEvents({
+    onProposalExecuted: (event: ProposalExecutedEvent) => {
+      setProposals((prev) =>
+        prev.map((proposal) =>
+          proposal.id === event.id ? { ...proposal, executed: true, executeStatus: 'success', executeError: null } : proposal
+        )
+      )
+    }
+  })
+
   if (loading) {
     return (
       <section className="proposal-list">
@@ -234,6 +251,12 @@ export const ProposalList = () => {
 
             {!proposal.executed && !isOwner && account && (
               <p className="muted">Тільки власник може виконати пропозицію</p>
+            )}
+
+            {proposal.executeStatus === 'pending' && (
+              <div className="status-message pending">
+                <p>Очікуємо підтвердження транзакції у мережі...</p>
+              </div>
             )}
 
             {proposal.executeStatus === 'success' && (
