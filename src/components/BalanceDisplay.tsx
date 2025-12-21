@@ -174,10 +174,6 @@ export const BalanceDisplay = ({
   }, [])
 
   const initializeConnection = useCallback(async () => {
-    if (!shouldAutoConnect) {
-      return
-    }
-
     const provider = getProvider()
 
     if (!provider) {
@@ -190,6 +186,13 @@ export const BalanceDisplay = ({
       const accounts = await provider.send('eth_accounts', [])
 
       if (!accounts || accounts.length === 0) {
+        setAccount(null)
+        resetBalances('disconnected')
+        return
+      }
+
+      // Only auto-connect if shouldAutoConnect is true
+      if (!shouldAutoConnect) {
         setAccount(null)
         resetBalances('disconnected')
         return
@@ -261,14 +264,8 @@ export const BalanceDisplay = ({
   }, [persistAutoConnectPreference, resetBalances])
 
   useEffect(() => {
-    if (!shouldAutoConnect) {
-      setAccount(null)
-      resetBalances('disconnected')
-      return
-    }
-
     initializeConnection()
-  }, [initializeConnection, resetBalances, shouldAutoConnect])
+  }, [initializeConnection])
 
   useEffect(() => {
     const ethereum = window.ethereum

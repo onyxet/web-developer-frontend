@@ -1,18 +1,23 @@
 import './App.css'
 
 import BalanceDisplay from './components/BalanceDisplay'
+import DAO from './components/DAO'
 
 function App() {
   const customTokenAddress = import.meta.env.VITE_CUSTOM_TOKEN_ADDRESS
 
   return (
 	<div className="app-container">
-	  <h1>Balance overview</h1>
+	  <h1>Web3 DApp</h1>
 	  <p className="muted">
-		Підключіть гаманець через AppKit/Web3Modal або будь-яку іншу інтеграцію, після чого баланси
-		завантажаться автоматично.
+		Підключіть гаманець для взаємодії з балансами та DAO
 	  </p>
-	  <BalanceDisplay customTokenAddress={customTokenAddress} heading="Current balances" />
+
+	  <BalanceDisplay customTokenAddress={customTokenAddress} heading="Баланси" />
+
+	  <hr className="section-divider" />
+
+	  <DAO />
 	</div>
   )
 }
