@@ -1,22 +1,17 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { CreateProposal } from './CreateProposal'
-import { ProposalList } from './ProposalList'
 import { DAO_CONTRACT_ADDRESS, type ProposalExecutedEvent } from '../contracts/dao'
 import { useDAOEvents } from '../hooks/useDAOEvents'
 
 export const DAO = () => {
-  const [refreshKey, setRefreshKey] = useState(0)
   const isDAOConfigured = DAO_CONTRACT_ADDRESS
 
   const handleProposalCreated = useCallback(() => {
-    // Refresh the proposal list when a new proposal is created
-    setRefreshKey((prev) => prev + 1)
+    console.log('Proposal created')
   }, [])
 
   const handleProposalExecuted = useCallback((event: ProposalExecutedEvent) => {
-    // Refresh the proposal list when a proposal is executed
     console.log('Proposal executed:', event)
-    setRefreshKey((prev) => prev + 1)
   }, [])
 
   // Listen for DAO events
@@ -49,7 +44,6 @@ export const DAO = () => {
       )}
 
       <CreateProposal onProposalCreated={handleProposalCreated} />
-      <ProposalList key={refreshKey} />
     </div>
   )
 }
