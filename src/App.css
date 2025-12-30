@@ -730,3 +730,579 @@ textarea:focus {
   background-color: #6c757d;
   border-color: #6c757d;
 }
+
+/* ========================================
+   Enhanced Navigation Styles
+======================================== */
+.main-navigation {
+  background-color: #1a1a1a;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.nav-brand a {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.nav-link {
+  color: #ccc;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.active {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.nav-wallet {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.wallet-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.wallet-address {
+  color: #ccc;
+  font-family: monospace;
+  font-size: 0.9rem;
+}
+
+/* ========================================
+   Proposal State Labels
+======================================== */
+.proposal-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.state-pending {
+  background-color: #ffc107;
+  color: #856404;
+}
+
+.state-active {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.state-canceled {
+  background-color: #6c757d;
+  color: white;
+}
+
+.state-defeated {
+  background-color: #dc3545;
+  color: white;
+}
+
+.state-succeeded {
+  background-color: #28a745;
+  color: white;
+}
+
+.state-queued {
+  background-color: #6f42c1;
+  color: white;
+}
+
+.state-expired {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.state-executed {
+  background-color: #007bff;
+  color: white;
+}
+
+/* ========================================
+   Vote Buttons
+======================================== */
+.vote-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.vote-button.vote-for {
+  background-color: #28a745;
+  color: white;
+  border: 2px solid #28a745;
+  flex: 1;
+  min-width: 120px;
+}
+
+.vote-button.vote-for:hover:not(:disabled) {
+  background-color: #218838;
+  border-color: #218838;
+}
+
+.vote-button.vote-against {
+  background-color: #dc3545;
+  color: white;
+  border: 2px solid #dc3545;
+  flex: 1;
+  min-width: 120px;
+}
+
+.vote-button.vote-against:hover:not(:disabled) {
+  background-color: #c82333;
+  border-color: #c82333;
+}
+
+.vote-button.vote-abstain {
+  background-color: #ffc107;
+  color: #333;
+  border: 2px solid #ffc107;
+  flex: 1;
+  min-width: 120px;
+}
+
+.vote-button.vote-abstain:hover:not(:disabled) {
+  background-color: #e0a800;
+  border-color: #e0a800;
+}
+
+.vote-button.vote-submit {
+  background-color: #007bff;
+  color: white;
+  border: 2px solid #007bff;
+}
+
+.vote-button.vote-submit:hover:not(:disabled) {
+  background-color: #0056b3;
+  border-color: #0056b3;
+}
+
+.vote-button.vote-cancel {
+  background-color: #6c757d;
+  color: white;
+  border: 2px solid #6c757d;
+}
+
+.vote-button.vote-cancel:hover:not(:disabled) {
+  background-color: #5a6268;
+  border-color: #5a6268;
+}
+
+/* Vote reason form */
+.vote-reason-form {
+  margin-top: 1rem;
+  text-align: left;
+}
+
+.vote-reason-form label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.vote-reason-form textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.vote-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.vote-actions button {
+  flex: 1;
+}
+
+/* ========================================
+   Transaction Status
+======================================== */
+.transaction-status {
+  margin-top: 1rem;
+}
+
+.tx-hash-link {
+  color: #007bff;
+  text-decoration: none;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.tx-hash-link:hover {
+  text-decoration: underline;
+}
+
+.error-message {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+/* ========================================
+   Queue and Execute Actions
+======================================== */
+.queue-action,
+.execute-action {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.queue-button,
+.execute-button {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #6f42c1;
+  color: white;
+  border: 2px solid #6f42c1;
+}
+
+.queue-button:hover:not(:disabled) {
+  background-color: #5a32a3;
+  border-color: #5a32a3;
+}
+
+.execute-button {
+  background-color: #007bff;
+  border-color: #007bff;
+}
+
+.execute-button:hover:not(:disabled) {
+  background-color: #0056b3;
+  border-color: #0056b3;
+}
+
+/* ========================================
+   Proposal Filters
+======================================== */
+.proposal-filters {
+  margin: 1.5rem 0;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-tab {
+  padding: 0.5rem 1rem;
+  background-color: #f0f0f0;
+  color: #333;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.filter-tab:hover {
+  background-color: #e0e0e0;
+}
+
+.filter-tab.active {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.filter-search {
+  margin-top: 1rem;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  transition: border-color 0.2s ease;
+}
+
+.search-input:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+/* ========================================
+   Events Styling
+======================================== */
+.event-list {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.event-filters {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-group label {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.filter-group select,
+.filter-group input {
+  padding: 0.5rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.event-count {
+  margin: 1rem 0;
+}
+
+.events-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.event-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease;
+}
+
+.event-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.event-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.event-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.event-type {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.event-description {
+  line-height: 1.5;
+  color: #555;
+}
+
+.event-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.event-separator {
+  color: #ccc;
+}
+
+.event-tx-link {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.event-tx-link:hover {
+  text-decoration: underline;
+}
+
+.vote-label {
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.vote-label.vote-for {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.vote-label.vote-against {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.vote-label.vote-abstain {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.vote-reason {
+  margin-top: 0.5rem;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+/* ========================================
+   Additional Enhancements
+======================================== */
+.proposal-id,
+.proposal-id-small {
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.proposal-id {
+  font-size: 0.9rem;
+}
+
+.proposal-id-small {
+  font-size: 0.75rem;
+}
+
+.result-item.abstain {
+  background-color: #fff3cd;
+  border: 2px solid #ffc107;
+}
+
+.vote-bar-abstain {
+  background-color: #ffc107;
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  font-weight: 600;
+}
+
+.retry-button {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #007bff;
+  color: white;
+  border: 2px solid #007bff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.retry-button:hover {
+  background-color: #0056b3;
+  border-color: #0056b3;
+}
+
+.home-info {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.home-info ul {
+  margin-top: 1rem;
+  margin-left: 1.5rem;
+}
+
+.home-info li {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+/* ========================================
+   Responsive Design
+======================================== */
+@media (max-width: 768px) {
+  .main-navigation {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .filter-tabs {
+    justify-content: center;
+  }
+
+  .vote-buttons {
+    flex-direction: column;
+  }
+
+  .vote-button {
+    min-width: 100%;
+  }
+
+  .results-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .event-filters {
+    grid-template-columns: 1fr;
+  }
+}

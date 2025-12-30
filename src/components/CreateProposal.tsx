@@ -1,7 +1,8 @@
-import { FormEvent, useState, useEffect } from 'react'
-import { BrowserProvider, Contract } from 'ethers'
-import { DAO_ABI, DAO_CONTRACT_ADDRESS, type ProposalCreatedEvent } from '../contracts/dao'
+import { FormEvent, useState } from 'react'
+import { type ProposalCreatedEvent } from '../contracts/dao'
 import { useDAOEvents } from '../hooks/useDAOEvents'
+import { useWallet } from '../contexts/WalletContext'
+import { proposalsAPI } from '../services/api'
 
 type TransactionStatus = 'idle' | 'pending' | 'confirming' | 'success' | 'error'
 
@@ -10,12 +11,11 @@ interface CreateProposalProps {
 }
 
 export const CreateProposal = ({ onProposalCreated }: CreateProposalProps) => {
+  const { account, provider, isConnected } = useWallet()
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState<TransactionStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
-  const [isOwner, setIsOwner] = useState<boolean>(false)
-  const [isCheckingOwner, setIsCheckingOwner] = useState(true)
 
   // Listen for ProposalCreated events
   useDAOEvents({
@@ -29,58 +29,6 @@ export const CreateProposal = ({ onProposalCreated }: CreateProposalProps) => {
     }
   })
 
-  // Check if current user is owner
-  useEffect(() => {
-    const checkOwner = async () => {
-      if (typeof window === 'undefined' || !window.ethereum) {
-        setIsCheckingOwner(false)
-        return
-      }
-
-      if (!DAO_CONTRACT_ADDRESS || DAO_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
-        setIsCheckingOwner(false)
-        return
-      }
-
-      try {
-        const provider = new BrowserProvider(window.ethereum)
-        const accounts = await provider.send('eth_accounts', [])
-
-        if (!accounts || accounts.length === 0) {
-          setIsOwner(false)
-          setIsCheckingOwner(false)
-          return
-        }
-
-        const contract = new Contract(DAO_CONTRACT_ADDRESS, DAO_ABI, provider)
-        const owner = await contract.owner()
-        setIsOwner(owner.toLowerCase() === accounts[0].toLowerCase())
-      } catch (err) {
-        console.error('Error checking owner:', err)
-        setIsOwner(false)
-      } finally {
-        setIsCheckingOwner(false)
-      }
-    }
-
-    checkOwner()
-
-    // Re-check when account changes
-    const handleAccountsChanged = () => {
-      checkOwner()
-    }
-
-    if (window.ethereum) {
-      window.ethereum.on?.('accountsChanged', handleAccountsChanged)
-    }
-
-    return () => {
-      if (window.ethereum) {
-        window.ethereum.removeListener?.('accountsChanged', handleAccountsChanged)
-      }
-    }
-  }, [])
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
 
@@ -90,14 +38,8 @@ export const CreateProposal = ({ onProposalCreated }: CreateProposalProps) => {
       return
     }
 
-    if (typeof window === 'undefined' || !window.ethereum) {
-      setError('Будь ласка, встановіть MetaMask')
-      return
-    }
-
-    // Check if DAO contract address is configured
-    if (!DAO_CONTRACT_ADDRESS || DAO_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
-      setError('DAO контракт не налаштовано. Будь ласка, встановіть реальну адресу DAO контракту у .env файлі')
+    if (!isConnected || !provider || !account) {
+      setError('Будь ласка, підключіть гаманець')
       return
     }
 
@@ -106,19 +48,37 @@ export const CreateProposal = ({ onProposalCreated }: CreateProposalProps) => {
     setTxHash(null)
 
     try {
-      const provider = new BrowserProvider(window.ethereum)
-      const signer = await provider.getSigner()
-      const contract = new Contract(DAO_CONTRACT_ADDRESS, DAO_ABI, signer)
-
-      // Call createProposal with timeout
-      const txPromise = contract.createProposal(description)
-
-      // Add timeout for user response (60 seconds)
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout: Транзакцію не підписано протягом 60 секунд')), 60000)
+      // Call API to prepare proposal transaction and check voting power
+      const response = await proposalsAPI.createProposal({
+        proposerAddress: account,
+        targets: ['0x0000000000000000000000000000000000000000'],
+        values: ['0'],
+        calldatas: ['0x'],
+        description
       })
 
-      const tx = await Promise.race([txPromise, timeoutPromise])
+      // Check if user has sufficient voting power
+      if (!response.success) {
+        setError(response.message || response.error || 'Не вдалося створити пропозицію')
+        setStatus('error')
+        return
+      }
+
+      // User has voting power, now send the transaction
+      if (!response.transactionData) {
+        setError('Не отримано даних транзакції')
+        setStatus('error')
+        return
+      }
+
+      const signer = await provider.getSigner()
+
+      // Send transaction
+      const tx = await signer.sendTransaction({
+        to: response.transactionData.to,
+        data: response.transactionData.data
+      })
+
       setTxHash(tx.hash)
       setStatus('confirming')
 
@@ -132,17 +92,17 @@ export const CreateProposal = ({ onProposalCreated }: CreateProposalProps) => {
       let message = 'Не вдалося створити пропозицію'
 
       if (err instanceof Error) {
-        // Check for rate limiting
-        if (err.message.includes('rate limit') || err.message.includes('UNKNOWN_ERROR')) {
-          message = 'RPC провайдер обмежує запити. Спробуйте через декілька секунд або змініть мережу.'
-        }
         // Check for user rejection
-        else if (err.message.includes('user rejected') || err.message.includes('User denied')) {
+        if (err.message.includes('user rejected') || err.message.includes('User denied')) {
           message = 'Транзакцію відхилено користувачем'
         }
         // Check for insufficient funds
         else if (err.message.includes('insufficient funds')) {
           message = 'Недостатньо коштів для оплати gas'
+        }
+        // Check for rate limiting
+        else if (err.message.includes('rate limit') || err.message.includes('UNKNOWN_ERROR')) {
+          message = 'RPC провайдер обмежує запити. Спробуйте через декілька секунд або змініть мережу.'
         }
         else {
           message = err.message
@@ -157,18 +117,18 @@ export const CreateProposal = ({ onProposalCreated }: CreateProposalProps) => {
   return (
     <section className="create-proposal">
       <h2>Створити пропозицію</h2>
+      <p className="muted">Заповніть форму нижче, щоб створити нову пропозицію для голосування</p>
 
-      {isCheckingOwner && <p className="muted">Перевірка прав доступу...</p>}
-
-      {!isCheckingOwner && !isOwner && (
-        <div className="status-message error">
-          <p>⚠️ Тільки власник контракту може створювати пропозиції</p>
-          <p className="muted">Підключіть гаманець власника контракту</p>
+      {isConnected && (
+        <div className="status-message success" style={{ marginBottom: '16px' }}>
+          <p>✓ Будь-хто з правом голосу може створювати пропозиції</p>
+          <p className="muted" style={{ marginTop: '8px', fontSize: '0.9em' }}>
+            Ваш гаманець: {account}
+          </p>
         </div>
       )}
 
-      {!isCheckingOwner && isOwner && (
-        <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="description">Опис пропозиції:</label>
           <textarea
@@ -177,18 +137,17 @@ export const CreateProposal = ({ onProposalCreated }: CreateProposalProps) => {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Введіть опис вашої пропозиції..."
             rows={4}
-            disabled={status === 'pending'}
+            disabled={status === 'pending' || status === 'confirming'}
             required
           />
         </div>
 
-          <button type="submit" disabled={status === 'pending' || !description.trim()}>
-            {status === 'pending' ? 'Створення...' : 'Створити'}
-          </button>
-        </form>
-      )}
+        <button type="submit" disabled={status === 'pending' || status === 'confirming' || !description.trim() || !isConnected}>
+          {status === 'pending' ? 'Перевірка права голосу...' : status === 'confirming' ? 'Підтвердження...' : 'Створити'}
+        </button>
+      </form>
 
-      {!isCheckingOwner && isOwner && status === 'pending' && (
+      {status === 'pending' && (
         <div className="status-message pending">
           <p>Очікування підписання транзакції у MetaMask...</p>
           <p className="muted" style={{ marginTop: '8px' }}>Перевірте, чи відкрилося вікно MetaMask</p>
@@ -204,21 +163,21 @@ export const CreateProposal = ({ onProposalCreated }: CreateProposalProps) => {
         </div>
       )}
 
-      {!isCheckingOwner && isOwner && status === 'confirming' && (
+      {status === 'confirming' && (
         <div className="status-message pending">
           <p>Очікування підтвердження...</p>
           {txHash && <p className="muted">Hash: {txHash}</p>}
         </div>
       )}
 
-      {!isCheckingOwner && isOwner && status === 'success' && (
+      {status === 'success' && (
         <div className="status-message success">
           <p>Пропозицію успішно створено!</p>
           {txHash && <p className="muted">Hash: {txHash}</p>}
         </div>
       )}
 
-      {!isCheckingOwner && isOwner && status === 'error' && error && (
+      {status === 'error' && error && (
         <div className="status-message error">
           <p>{error}</p>
         </div>

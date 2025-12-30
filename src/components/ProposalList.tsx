@@ -1,74 +1,22 @@
 import { useCallback, useEffect, useState } from 'react'
-import { BrowserProvider, Contract } from 'ethers'
-import { DAO_ABI, DAO_CONTRACT_ADDRESS, type Proposal, type ProposalExecutedEvent } from '../contracts/dao'
-import { useDAOEvents } from '../hooks/useDAOEvents'
-
-type ExecuteStatus = 'idle' | 'pending' | 'success' | 'error'
-
-interface ProposalWithExecuteStatus extends Proposal {
-  executeStatus: ExecuteStatus
-  executeError: string | null
-}
+import { proposalsAPI, type ProposalDetailed, ProposalState } from '../services/api'
+import { useWallet } from '../contexts/WalletContext'
+import { VoteForm } from './proposals/VoteForm'
+import { StateLabel } from './common/StateLabel'
+import { formatEther } from 'ethers'
 
 export const ProposalList = () => {
-  const [proposals, setProposals] = useState<ProposalWithExecuteStatus[]>([])
+  const { isConnected } = useWallet()
+  const [proposals, setProposals] = useState<ProposalDetailed[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [account, setAccount] = useState<string | null>(null)
-  const [isOwner, setIsOwner] = useState<boolean>(false)
+  const [expandedProposal, setExpandedProposal] = useState<string | null>(null)
 
-  const fetchProposals = useCallback(async (userAccount?: string) => {
-    if (typeof window === 'undefined' || !window.ethereum) {
-      setError('Будь ласка, встановіть MetaMask')
-      setLoading(false)
-      return
-    }
-
-    if (!DAO_CONTRACT_ADDRESS) {
-      setError('DAO контракт не налаштовано. Будь ласка, встановіть VITE_DAO_CONTRACT_ADDRESS у .env файлі')
-      setLoading(false)
-      return
-    }
-
+  const fetchProposals = useCallback(async () => {
     try {
-      const provider = new BrowserProvider(window.ethereum)
-      const contract = new Contract(DAO_CONTRACT_ADDRESS, DAO_ABI, provider)
-
-      const count = await contract.proposalCount()
-      const proposalCount = Number(count)
-
-      if (proposalCount === 0) {
-        setProposals([])
-        setLoading(false)
-        return
-      }
-
-      // Check if user is owner
-      if (userAccount) {
-        try {
-          const owner = await contract.owner()
-          setIsOwner(owner.toLowerCase() === userAccount.toLowerCase())
-        } catch {
-          setIsOwner(false)
-        }
-      }
-
-      const proposalPromises = []
-      for (let i = 1; i <= proposalCount; i++) {
-        proposalPromises.push(contract.getProposal(i))
-      }
-
-      const proposalData = await Promise.all(proposalPromises)
-
-      const proposalsWithStatus = proposalData.map((proposal) => ({
-        id: proposal.id,
-        description: proposal.description,
-        executed: proposal.executed,
-        executeStatus: 'idle' as ExecuteStatus,
-        executeError: null
-      }))
-
-      setProposals(proposalsWithStatus)
+      setLoading(true)
+      const response = await proposalsAPI.getAllDetailedProposals()
+      setProposals(response.proposals)
       setError(null)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Не вдалося завантажити пропозиції'
@@ -78,119 +26,30 @@ export const ProposalList = () => {
     }
   }, [])
 
-  const handleExecute = async (proposalId: bigint) => {
-    if (typeof window === 'undefined' || !window.ethereum) {
-      return
-    }
+  useEffect(() => {
+    fetchProposals()
+  }, [fetchProposals])
 
-    // Update proposal status to pending
-    setProposals((prev) =>
-      prev.map((p) => (p.id === proposalId ? { ...p, executeStatus: 'pending', executeError: null } : p))
-    )
-
-    try {
-      const provider = new BrowserProvider(window.ethereum)
-      const signer = await provider.getSigner()
-      const contract = new Contract(DAO_CONTRACT_ADDRESS, DAO_ABI, signer)
-
-      const tx = await contract.executeProposal(proposalId)
-      await tx.wait()
-
-      const updatedProposal = await contract.getProposal(proposalId)
-
-      setProposals((prev) =>
-        prev.map((p) =>
-          p.id === proposalId
-            ? {
-                ...p,
-                description: updatedProposal.description,
-                executed: updatedProposal.executed,
-                executeStatus: 'success',
-                executeError: null
-              }
-            : p
-        )
-      )
-    } catch (err) {
-      let message = 'Не вдалося виконати пропозицію'
-
-      if (err instanceof Error) {
-        // Check for rate limiting
-        if (err.message.includes('rate limit') || err.message.includes('UNKNOWN_ERROR')) {
-          message = 'RPC провайдер обмежує запити. Спробуйте через декілька секунд або змініть мережу.'
-        }
-        // Check for user rejection
-        else if (err.message.includes('user rejected') || err.message.includes('User denied')) {
-          message = 'Транзакцію відхилено користувачем'
-        }
-        // Check for insufficient funds
-        else if (err.message.includes('insufficient funds')) {
-          message = 'Недостатньо коштів для оплати gas'
-        }
-        else {
-          message = err.message
-        }
-      }
-
-      setProposals((prev) =>
-        prev.map((p) => (p.id === proposalId ? { ...p, executeStatus: 'error', executeError: message } : p))
-      )
-    }
+  const toggleProposal = (proposalId: string) => {
+    setExpandedProposal(expandedProposal === proposalId ? null : proposalId)
   }
 
-  useEffect(() => {
-    const loadAccountAndProposals = async () => {
-      if (typeof window === 'undefined' || !window.ethereum) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        const provider = new BrowserProvider(window.ethereum)
-        const accounts = await provider.send('eth_accounts', [])
-
-        if (accounts && accounts.length > 0) {
-          setAccount(accounts[0])
-          await fetchProposals(accounts[0])
-        } else {
-          await fetchProposals()
-        }
-      } catch {
-        await fetchProposals()
-      }
+  const getStateColor = (state: ProposalState): string => {
+    switch (state) {
+      case ProposalState.Active:
+        return 'active'
+      case ProposalState.Succeeded:
+        return 'success'
+      case ProposalState.Executed:
+        return 'executed'
+      case ProposalState.Defeated:
+      case ProposalState.Canceled:
+      case ProposalState.Expired:
+        return 'error'
+      default:
+        return 'pending'
     }
-
-    loadAccountAndProposals()
-  }, [fetchProposals])
-
-  // Listen for account changes
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.ethereum) {
-      return
-    }
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      const newAccount = accounts && accounts.length > 0 ? accounts[0] : null
-      setAccount(newAccount)
-      fetchProposals(newAccount || undefined)
-    }
-
-    window.ethereum.on?.('accountsChanged', handleAccountsChanged)
-
-    return () => {
-      window.ethereum.removeListener?.('accountsChanged', handleAccountsChanged)
-    }
-  }, [fetchProposals])
-
-  useDAOEvents({
-    onProposalExecuted: (event: ProposalExecutedEvent) => {
-      setProposals((prev) =>
-        prev.map((proposal) =>
-          proposal.id === event.id ? { ...proposal, executed: true, executeStatus: 'success', executeError: null } : proposal
-        )
-      )
-    }
-  })
+  }
 
   if (loading) {
     return (
@@ -221,53 +80,108 @@ export const ProposalList = () => {
 
   return (
     <section className="proposal-list">
-      <h2>Пропозиції</h2>
+      <h2>Пропозиції DAO</h2>
+      <p className="muted">Переглядайте та голосуйте за пропозиції</p>
 
       <div className="proposals">
         {proposals.map((proposal) => (
-          <div key={proposal.id.toString()} className="proposal-card">
+          <div key={proposal.proposalId} className="proposal-card">
             <div className="proposal-header">
-              <h3>Пропозиція #{proposal.id.toString()}</h3>
-              {proposal.executed ? (
-                <span className="proposal-status executed">✓ Виконано</span>
-              ) : (
-                <span className="proposal-status pending">Очікує</span>
+              <div>
+                <h3>{proposal.description.split('\n')[0] || `Пропозиція #${proposal.proposalId.slice(0, 10)}...`}</h3>
+                <p className="muted" style={{ fontSize: '0.85em', marginTop: '4px' }}>
+                  ID: {proposal.proposalId}
+                </p>
+              </div>
+              {proposal.state !== undefined && (
+                <span className={`proposal-status ${getStateColor(proposal.state)}`}>
+                  <StateLabel state={proposal.state} />
+                </span>
               )}
             </div>
 
             <p className="proposal-description">{proposal.description}</p>
 
-            {!proposal.executed && isOwner && (
-              <div className="execute-actions">
-                <button
-                  onClick={() => handleExecute(proposal.id)}
-                  disabled={proposal.executeStatus === 'pending'}
-                  className="execute-button"
-                >
-                  {proposal.executeStatus === 'pending' ? 'Виконання...' : 'Виконати пропозицію'}
-                </button>
+            {/* Proposal Details */}
+            <div className="proposal-details">
+              <div className="detail-row">
+                <span className="label">Proposer:</span>
+                <span className="value">{proposal.proposer.slice(0, 10)}...{proposal.proposer.slice(-8)}</span>
+              </div>
+
+              {/* Voting Results */}
+              {(proposal.forVotes || proposal.againstVotes || proposal.abstainVotes) && (
+                <div className="voting-results">
+                  <h4>Результати голосування:</h4>
+                  <div className="votes-breakdown">
+                    <div className="vote-item vote-for">
+                      <span>За:</span>
+                      <strong>{proposal.forVotes ? formatEther(proposal.forVotes) : '0'}</strong>
+                    </div>
+                    <div className="vote-item vote-against">
+                      <span>Проти:</span>
+                      <strong>{proposal.againstVotes ? formatEther(proposal.againstVotes) : '0'}</strong>
+                    </div>
+                    <div className="vote-item vote-abstain">
+                      <span>Утрималися:</span>
+                      <strong>{proposal.abstainVotes ? formatEther(proposal.abstainVotes) : '0'}</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => toggleProposal(proposal.proposalId)}
+                className="toggle-details"
+              >
+                {expandedProposal === proposal.proposalId ? 'Приховати деталі ▲' : 'Показати деталі ▼'}
+              </button>
+
+              {expandedProposal === proposal.proposalId && (
+                <div className="expanded-details">
+                  <div className="detail-row">
+                    <span className="label">Targets:</span>
+                    <span className="value">{proposal.targets.join(', ')}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Values:</span>
+                    <span className="value">{proposal.values.join(', ')}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Vote Start:</span>
+                    <span className="value">Block #{proposal.voteStart}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Vote End:</span>
+                    <span className="value">Block #{proposal.voteEnd}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Show voting form only for Active proposals */}
+            {proposal.state === ProposalState.Active && isConnected && (
+              <div className="vote-section">
+                <VoteForm
+                  proposalId={proposal.proposalId}
+                  onSuccess={() => {
+                    // Refresh proposals after successful vote
+                    fetchProposals()
+                  }}
+                />
               </div>
             )}
 
-            {!proposal.executed && !isOwner && account && (
-              <p className="muted">Тільки власник може виконати пропозицію</p>
-            )}
-
-            {proposal.executeStatus === 'pending' && (
-              <div className="status-message pending">
-                <p>Очікуємо підтвердження транзакції у мережі...</p>
-              </div>
-            )}
-
-            {proposal.executeStatus === 'success' && (
-              <div className="status-message success">
-                <p>Пропозицію виконано!</p>
-              </div>
-            )}
-
-            {proposal.executeStatus === 'error' && proposal.executeError && (
-              <div className="status-message error">
-                <p>{proposal.executeError}</p>
+            {/* Show message for non-active proposals */}
+            {proposal.state !== ProposalState.Active && (
+              <div className="muted" style={{ marginTop: '16px', padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}>
+                {proposal.state === ProposalState.Pending && 'Голосування ще не почалося'}
+                {proposal.state === ProposalState.Succeeded && 'Голосування завершено - пропозиція прийнята'}
+                {proposal.state === ProposalState.Defeated && 'Голосування завершено - пропозиція відхилена'}
+                {proposal.state === ProposalState.Executed && 'Пропозиція виконана'}
+                {proposal.state === ProposalState.Canceled && 'Пропозиція скасована'}
+                {proposal.state === ProposalState.Expired && 'Пропозиція прострочена'}
+                {proposal.state === ProposalState.Queued && 'Пропозиція в черзі на виконання'}
               </div>
             )}
           </div>
